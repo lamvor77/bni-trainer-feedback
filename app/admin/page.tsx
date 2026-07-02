@@ -22,6 +22,8 @@ export default function AdminPage() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
 
+  const [analysisTrainingId, setAnalysisTrainingId] = useState("msp");
+  const [analysisTrainingTitle, setAnalysisTrainingTitle] = useState("MSP 교육");
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>("idle");
   const [analysisResult, setAnalysisResult] = useState<FeedbackAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -101,7 +103,7 @@ export default function AdminPage() {
       const res = await fetch("/api/analyze-feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trainingId: "test", trainingTitle: "AI 분석 테스트" }),
+        body: JSON.stringify({ trainingId: analysisTrainingId, trainingTitle: analysisTrainingTitle }),
       });
       const data = await res.json();
 
@@ -109,7 +111,9 @@ export default function AdminPage() {
         setAnalysisResult(data.analysis);
         setAnalysisStatus("success");
       } else {
-        setAnalysisError("분석 결과를 가져오지 못했습니다.");
+        setAnalysisError(
+          typeof data?.message === "string" ? data.message : "분석 결과를 가져오지 못했습니다."
+        );
         setAnalysisStatus("error");
       }
     } catch {
@@ -214,6 +218,30 @@ export default function AdminPage() {
       </p>
 
       <div className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="analysis-training-id" className="text-xs font-medium text-zinc-600">
+            trainingId
+          </label>
+          <input
+            id="analysis-training-id"
+            type="text"
+            value={analysisTrainingId}
+            onChange={(e) => setAnalysisTrainingId(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-red-500"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="analysis-training-title" className="text-xs font-medium text-zinc-600">
+            trainingTitle
+          </label>
+          <input
+            id="analysis-training-title"
+            type="text"
+            value={analysisTrainingTitle}
+            onChange={(e) => setAnalysisTrainingTitle(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-red-500"
+          />
+        </div>
         <button
           type="button"
           onClick={handleAnalyze}

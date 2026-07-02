@@ -1,3 +1,21 @@
+export type FeedbackForAnalysis = {
+  trainingId: string;
+  trainingTitle: string;
+  trainerName?: string;
+  trainingDate?: string;
+  submittedAt?: string;
+  overallSatisfaction: number;
+  delivery: number;
+  preparation: number;
+  understanding: number;
+  practicality: number;
+  timeManagement: number;
+  participation: number;
+  bestPoint: string;
+  improvementPoint: string;
+  messageToTrainer?: string;
+};
+
 export type FeedbackAnalysisResult = {
   summary: string;
   averageScores: {

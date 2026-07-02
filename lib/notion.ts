@@ -1,6 +1,7 @@
 import { Client } from "@notionhq/client";
 import type { CreatePageParameters } from "@notionhq/client";
 import type { FeedbackFormData, TrainingMeta, TrainingTemplate } from "@/types/feedback";
+import type { FeedbackForAnalysis } from "@/types/analysis";
 
 type NotionProperties = NonNullable<CreatePageParameters["properties"]>;
 
@@ -124,6 +125,20 @@ function readCheckbox(property: unknown): boolean {
   return (property as Record<string, unknown>).checkbox === true;
 }
 
+function readNumber(property: unknown): number {
+  if (typeof property !== "object" || property === null) return 0;
+  const value = (property as Record<string, unknown>).number;
+  return typeof value === "number" ? value : 0;
+}
+
+function readDateStart(property: unknown): string | undefined {
+  if (typeof property !== "object" || property === null) return undefined;
+  const date = (property as Record<string, unknown>).date;
+  if (typeof date !== "object" || date === null) return undefined;
+  const start = (date as Record<string, unknown>).start;
+  return typeof start === "string" ? start : undefined;
+}
+
 export async function getTrainingTemplates(): Promise<TrainingTemplate[]> {
   const env = getTrainingTemplateEnv();
 
@@ -166,6 +181,63 @@ export async function getTrainingTemplates(): Promise<TrainingTemplate[]> {
     return templates;
   } catch (error) {
     console.error("[BNI Feedback] failed to load training templates", error);
+    return [];
+  }
+}
+
+export async function getFeedbackByTrainingId(trainingId: string): Promise<FeedbackForAnalysis[]> {
+  const env = getNotionEnv();
+
+  if (!env) {
+    return [];
+  }
+
+  try {
+    const notion = new Client({ auth: env.apiKey });
+    const database = await notion.databases.retrieve({ database_id: env.databaseId });
+    const dataSourceId = "data_sources" in database ? database.data_sources[0]?.id : undefined;
+
+    if (!dataSourceId) {
+      return [];
+    }
+
+    const response = await notion.dataSources.query({
+      data_source_id: dataSourceId,
+      filter: { property: "Training ID", rich_text: { equals: trainingId } },
+      sorts: [{ property: "Submitted At", direction: "descending" }],
+    });
+
+    const feedbackList: FeedbackForAnalysis[] = [];
+
+    for (const result of response.results) {
+      if (result.object !== "page") continue;
+      const properties = (result as { properties?: unknown }).properties;
+      if (typeof properties !== "object" || properties === null) continue;
+
+      const props = properties as Record<string, unknown>;
+
+      feedbackList.push({
+        trainingId: readRichText(props["Training ID"]) || trainingId,
+        trainingTitle: readRichText(props["Training Title"]),
+        trainerName: readRichText(props["Trainer"]) || undefined,
+        trainingDate: readDateStart(props["Training Date"]),
+        submittedAt: readDateStart(props["Submitted At"]),
+        overallSatisfaction: readNumber(props["Overall Satisfaction"]),
+        delivery: readNumber(props["Delivery"]),
+        preparation: readNumber(props["Preparation"]),
+        understanding: readNumber(props["Understanding"]),
+        practicality: readNumber(props["Practicality"]),
+        timeManagement: readNumber(props["Time Management"]),
+        participation: readNumber(props["Participation"]),
+        bestPoint: readRichText(props["Best Point"]),
+        improvementPoint: readRichText(props["Improvement Point"]),
+        messageToTrainer: readRichText(props["Message to Trainer"]) || undefined,
+      });
+    }
+
+    return feedbackList;
+  } catch (error) {
+    console.error("[BNI Feedback] failed to load feedback for analysis", error);
     return [];
   }
 }
