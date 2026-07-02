@@ -25,3 +25,10 @@ export interface FeedbackFormData {
   training: TrainingMeta;
   submittedAt: string;
 }
+
+export type TrainingTemplate = {
+  id: string;
+  title: string;
+  defaultTrainer: string;
+  active: boolean;
+};

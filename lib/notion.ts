@@ -1,12 +1,23 @@
 import { Client } from "@notionhq/client";
 import type { CreatePageParameters } from "@notionhq/client";
-import type { FeedbackFormData, TrainingMeta } from "@/types/feedback";
+import type { FeedbackFormData, TrainingMeta, TrainingTemplate } from "@/types/feedback";
 
 type NotionProperties = NonNullable<CreatePageParameters["properties"]>;
 
 function getNotionEnv(): { apiKey: string; databaseId: string } | null {
   const apiKey = process.env.NOTION_API_KEY;
   const databaseId = process.env.NOTION_FEEDBACK_DATABASE_ID;
+
+  if (!apiKey || !databaseId) {
+    return null;
+  }
+
+  return { apiKey, databaseId };
+}
+
+function getTrainingTemplateEnv(): { apiKey: string; databaseId: string } | null {
+  const apiKey = process.env.NOTION_API_KEY;
+  const databaseId = process.env.NOTION_TRAINING_TEMPLATE_DATABASE_ID;
 
   if (!apiKey || !databaseId) {
     return null;
@@ -80,4 +91,81 @@ export async function createFeedbackPage(payload: FeedbackFormData): Promise<voi
     parent: { database_id: env.databaseId },
     properties: buildFeedbackProperties(payload),
   });
+}
+
+function readTitleText(property: unknown): string {
+  if (typeof property !== "object" || property === null) return "";
+  const { title } = property as Record<string, unknown>;
+  if (!Array.isArray(title)) return "";
+  return title
+    .map((item) =>
+      typeof item === "object" && item !== null && typeof (item as Record<string, unknown>).plain_text === "string"
+        ? ((item as Record<string, unknown>).plain_text as string)
+        : ""
+    )
+    .join("");
+}
+
+function readRichText(property: unknown): string {
+  if (typeof property !== "object" || property === null) return "";
+  const { rich_text: richTextValue } = property as Record<string, unknown>;
+  if (!Array.isArray(richTextValue)) return "";
+  return richTextValue
+    .map((item) =>
+      typeof item === "object" && item !== null && typeof (item as Record<string, unknown>).plain_text === "string"
+        ? ((item as Record<string, unknown>).plain_text as string)
+        : ""
+    )
+    .join("");
+}
+
+function readCheckbox(property: unknown): boolean {
+  if (typeof property !== "object" || property === null) return false;
+  return (property as Record<string, unknown>).checkbox === true;
+}
+
+export async function getTrainingTemplates(): Promise<TrainingTemplate[]> {
+  const env = getTrainingTemplateEnv();
+
+  if (!env) {
+    return [];
+  }
+
+  try {
+    const notion = new Client({ auth: env.apiKey });
+    const database = await notion.databases.retrieve({ database_id: env.databaseId });
+    const dataSourceId = "data_sources" in database ? database.data_sources[0]?.id : undefined;
+
+    if (!dataSourceId) {
+      return [];
+    }
+
+    const response = await notion.dataSources.query({
+      data_source_id: dataSourceId,
+      filter: { property: "Active", checkbox: { equals: true } },
+    });
+
+    const templates: TrainingTemplate[] = [];
+
+    for (const result of response.results) {
+      if (result.object !== "page") continue;
+      const properties = (result as { properties?: unknown }).properties;
+      if (typeof properties !== "object" || properties === null) continue;
+
+      const props = properties as Record<string, unknown>;
+      const title = readTitleText(props["Name"]);
+      if (!title) continue;
+
+      const templateId = readRichText(props["Template ID"]) || result.id;
+      const defaultTrainer = readRichText(props["Default Trainer"]);
+      const active = readCheckbox(props["Active"]);
+
+      templates.push({ id: templateId, title, defaultTrainer, active });
+    }
+
+    return templates;
+  } catch (error) {
+    console.error("[BNI Feedback] failed to load training templates", error);
+    return [];
+  }
 }

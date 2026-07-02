@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StarRating from "./StarRating";
+import TrainingSelector from "./TrainingSelector";
 import type {
   FeedbackFormData,
   RatingQuestionId,
@@ -9,6 +10,7 @@ import type {
   TextQuestionId,
   TextValues,
   TrainingMeta,
+  TrainingTemplate,
 } from "@/types/feedback";
 
 const RATING_QUESTIONS: { id: RatingQuestionId; number: number; label: string }[] = [
@@ -70,16 +72,70 @@ const INITIAL_TEXTS: TextValues = {
 type Errors = Partial<Record<RatingQuestionId | TextQuestionId, boolean>>;
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
-interface FeedbackFormProps {
-  trainingMeta: TrainingMeta;
+function todayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
+function isDateInputFormat(value: string | undefined): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+interface FeedbackFormProps {
+  urlTrainingMeta: TrainingMeta;
+}
+
+export default function FeedbackForm({ urlTrainingMeta }: FeedbackFormProps) {
   const [ratings, setRatings] = useState<RatingValues>(INITIAL_RATINGS);
   const [texts, setTexts] = useState<TextValues>(INITIAL_TEXTS);
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<TrainingTemplate[]>([]);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [trainingDate, setTrainingDate] = useState(() =>
+    isDateInputFormat(urlTrainingMeta.trainingDate) ? urlTrainingMeta.trainingDate : todayDateString()
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/training-templates")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const list: TrainingTemplate[] = Array.isArray(data?.templates) ? data.templates : [];
+        setTemplates(list);
+        setSelectedTemplateId((current) => {
+          if (current) return current;
+          const matched = list.find((template) => template.id === urlTrainingMeta.trainingId);
+          return matched ? matched.id : current;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setTemplates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTemplatesLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urlTrainingMeta.trainingId]);
+
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) ?? null;
+
+  const resolvedTraining: TrainingMeta = {
+    trainingId: selectedTemplate?.id || urlTrainingMeta.trainingId,
+    trainingTitle: selectedTemplate?.title || urlTrainingMeta.trainingTitle || "일반교육",
+    trainerName: selectedTemplate?.defaultTrainer || urlTrainingMeta.trainerName,
+    trainingDate: trainingDate || undefined,
+  };
 
   const handleRatingChange = (id: RatingQuestionId, value: number) => {
     setRatings((prev) => ({ ...prev, [id]: value }));
@@ -121,7 +177,7 @@ export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
     const payload: FeedbackFormData = {
       ratings,
       texts,
-      training: trainingMeta,
+      training: resolvedTraining,
       submittedAt: new Date().toISOString(),
     };
 
@@ -181,6 +237,16 @@ export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
         {status === "error" && submitError && (
           <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{submitError}</p>
         )}
+
+        <TrainingSelector
+          templates={templates}
+          templatesLoaded={templatesLoaded}
+          selectedTemplateId={selectedTemplateId}
+          onSelectTemplate={setSelectedTemplateId}
+          trainingDate={trainingDate}
+          onChangeDate={setTrainingDate}
+          fallbackTrainerName={urlTrainingMeta.trainerName}
+        />
 
         <section className="flex flex-col gap-7">
           {RATING_QUESTIONS.map((question) => (
