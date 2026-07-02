@@ -10,6 +10,7 @@ interface TrainingSelectorProps {
   trainingDate: string;
   onChangeDate: (date: string) => void;
   fallbackTrainerName?: string;
+  error?: boolean;
 }
 
 export default function TrainingSelector({
@@ -20,6 +21,7 @@ export default function TrainingSelector({
   trainingDate,
   onChangeDate,
   fallbackTrainerName,
+  error,
 }: TrainingSelectorProps) {
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) ?? null;
   const displayTrainer = selectedTemplate?.defaultTrainer || fallbackTrainerName;
@@ -29,7 +31,9 @@ export default function TrainingSelector({
     <section className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4">
       {templatesUnavailable ? (
         <p className="text-sm text-zinc-500">
-          교육 목록을 불러오지 못했습니다. 기본 교육으로 제출할 수 있습니다.
+          교육 목록을 불러오지 못했습니다.
+          <br />
+          관리자에게 문의해주세요.
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -40,15 +44,20 @@ export default function TrainingSelector({
             id="training-template"
             value={selectedTemplateId}
             onChange={(e) => onSelectTemplate(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-red-500"
+            className={`w-full rounded-xl border px-4 py-3 text-sm text-zinc-900 outline-none focus:border-red-500 ${
+              error ? "border-red-400 bg-red-50" : "border-zinc-200 bg-white"
+            }`}
           >
-            <option value="">교육을 선택해주세요</option>
+            <option value="" disabled>
+              교육을 선택해주세요
+            </option>
             {templates.map((template) => (
               <option key={template.id} value={template.id}>
                 {template.title}
               </option>
             ))}
           </select>
+          {error && <p className="text-xs text-red-600">교육을 선택해주세요.</p>}
         </div>
       )}
 

@@ -97,6 +97,7 @@ export default function FeedbackForm({ urlTrainingMeta }: FeedbackFormProps) {
   const [templates, setTemplates] = useState<TrainingTemplate[]>([]);
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [trainingError, setTrainingError] = useState(false);
   const [trainingDate, setTrainingDate] = useState(() =>
     isDateInputFormat(urlTrainingMeta.trainingDate) ? urlTrainingMeta.trainingDate : todayDateString()
   );
@@ -129,12 +130,18 @@ export default function FeedbackForm({ urlTrainingMeta }: FeedbackFormProps) {
   }, [urlTrainingMeta.trainingId]);
 
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) ?? null;
+  const templatesUnavailable = templatesLoaded && templates.length === 0;
 
   const resolvedTraining: TrainingMeta = {
-    trainingId: selectedTemplate?.id || urlTrainingMeta.trainingId,
-    trainingTitle: selectedTemplate?.title || urlTrainingMeta.trainingTitle || "일반교육",
+    trainingId: selectedTemplate?.id,
+    trainingTitle: selectedTemplate?.title,
     trainerName: selectedTemplate?.defaultTrainer || urlTrainingMeta.trainerName,
     trainingDate: trainingDate || undefined,
+  };
+
+  const handleSelectTemplate = (id: string) => {
+    setSelectedTemplateId(id);
+    setTrainingError(false);
   };
 
   const handleRatingChange = (id: RatingQuestionId, value: number) => {
@@ -153,6 +160,17 @@ export default function FeedbackForm({ urlTrainingMeta }: FeedbackFormProps) {
     if (status === "submitting") {
       return;
     }
+
+    if (templatesUnavailable) {
+      return;
+    }
+
+    if (!selectedTemplate) {
+      setTrainingError(true);
+      return;
+    }
+
+    setTrainingError(false);
 
     const nextErrors: Errors = {};
 
@@ -223,17 +241,13 @@ export default function FeedbackForm({ urlTrainingMeta }: FeedbackFormProps) {
     );
   }
 
-  const hasErrors = Object.values(errors).some(Boolean);
+  const hasRatingErrors = RATING_QUESTIONS.some((question) => errors[question.id]);
+  const hasTextErrors = TEXT_QUESTIONS.some((question) => question.required && errors[question.id]);
+  const submitDisabled = status === "submitting" || templatesUnavailable || !selectedTemplate;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-1 flex-col pb-28">
       <div className="flex flex-1 flex-col gap-8 px-5 py-6">
-        {hasErrors && (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
-            입력하지 않은 항목이 있습니다. 표시된 문항을 확인해주세요.
-          </p>
-        )}
-
         {status === "error" && submitError && (
           <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{submitError}</p>
         )}
@@ -242,10 +256,11 @@ export default function FeedbackForm({ urlTrainingMeta }: FeedbackFormProps) {
           templates={templates}
           templatesLoaded={templatesLoaded}
           selectedTemplateId={selectedTemplateId}
-          onSelectTemplate={setSelectedTemplateId}
+          onSelectTemplate={handleSelectTemplate}
           trainingDate={trainingDate}
           onChangeDate={setTrainingDate}
           fallbackTrainerName={urlTrainingMeta.trainerName}
+          error={trainingError}
         />
 
         <section className="flex flex-col gap-7">
@@ -260,11 +275,11 @@ export default function FeedbackForm({ urlTrainingMeta }: FeedbackFormProps) {
                 onChange={(value) => handleRatingChange(question.id, value)}
                 error={errors[question.id]}
               />
-              {errors[question.id] && (
-                <p className="text-xs text-red-600">별점을 선택해주세요.</p>
-              )}
             </div>
           ))}
+          {hasRatingErrors && (
+            <p className="text-xs text-red-600">모든 항목을 평가해주세요.</p>
+          )}
         </section>
 
         <section className="flex flex-col gap-6">
@@ -286,18 +301,18 @@ export default function FeedbackForm({ urlTrainingMeta }: FeedbackFormProps) {
                   errors[question.id] ? "border-red-400 bg-red-50" : "border-zinc-200 bg-white"
                 }`}
               />
-              {errors[question.id] && (
-                <p className="text-xs text-red-600">내용을 입력해주세요.</p>
-              )}
             </div>
           ))}
+          {hasTextErrors && (
+            <p className="text-xs text-red-600">필수 의견을 입력해주세요.</p>
+          )}
         </section>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 border-t border-zinc-200 bg-white/95 px-5 py-4 backdrop-blur">
         <button
           type="submit"
-          disabled={status === "submitting"}
+          disabled={submitDisabled}
           className="w-full rounded-xl bg-red-600 py-3.5 text-base font-semibold text-white transition-colors active:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
         >
           {status === "submitting" ? "제출 중..." : "제출하기"}
