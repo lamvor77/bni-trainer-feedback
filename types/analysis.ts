@@ -44,3 +44,18 @@ export type AnalysisReportSummary = {
   oneLineReview: string;
   overallSatisfaction: number;
 };
+
+export type AnalysisReportDetail = AnalysisReportSummary & {
+  summary: string;
+  delivery: number;
+  preparation: number;
+  understanding: number;
+  practicality: number;
+  timeManagement: number;
+  participation: number;
+  strengths: string[];
+  improvements: string[];
+  trainerAdvice: string;
+  keepForNextTraining: string[];
+  improveForNextTraining: string[];
+};

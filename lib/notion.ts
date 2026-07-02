@@ -1,7 +1,12 @@
 import { Client } from "@notionhq/client";
 import type { CreatePageParameters } from "@notionhq/client";
 import type { FeedbackFormData, TrainingMeta, TrainingTemplate } from "@/types/feedback";
-import type { AnalysisReportSummary, FeedbackAnalysisResult, FeedbackForAnalysis } from "@/types/analysis";
+import type {
+  AnalysisReportDetail,
+  AnalysisReportSummary,
+  FeedbackAnalysisResult,
+  FeedbackForAnalysis,
+} from "@/types/analysis";
 
 type NotionProperties = NonNullable<CreatePageParameters["properties"]>;
 
@@ -363,5 +368,61 @@ export async function getAnalysisReports(limit: number = 10): Promise<AnalysisRe
   } catch (error) {
     console.error("[BNI Feedback] failed to load analysis reports", error);
     return [];
+  }
+}
+
+function splitLines(value: string): string[] {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+export async function getAnalysisReportById(reportId: string): Promise<AnalysisReportDetail | null> {
+  const env = getAnalysisReportEnv();
+
+  if (!env) {
+    return null;
+  }
+
+  try {
+    const notion = new Client({ auth: env.apiKey });
+    const page = await notion.pages.retrieve({ page_id: reportId });
+
+    if (page.object !== "page") {
+      return null;
+    }
+
+    const properties = (page as { properties?: unknown }).properties;
+    if (typeof properties !== "object" || properties === null) {
+      return null;
+    }
+
+    const props = properties as Record<string, unknown>;
+
+    return {
+      id: page.id,
+      name: readTitleText(props["Name"]),
+      trainingId: readRichText(props["Training ID"]),
+      trainingTitle: readRichText(props["Training Title"]),
+      analyzedAt: readDateStart(props["Analyzed At"]) || "",
+      oneLineReview: readRichText(props["One Line Review"]),
+      overallSatisfaction: readNumber(props["Overall Satisfaction"]),
+      summary: readRichText(props["Summary"]),
+      delivery: readNumber(props["Delivery"]),
+      preparation: readNumber(props["Preparation"]),
+      understanding: readNumber(props["Understanding"]),
+      practicality: readNumber(props["Practicality"]),
+      timeManagement: readNumber(props["Time Management"]),
+      participation: readNumber(props["Participation"]),
+      strengths: splitLines(readRichText(props["Strengths"])),
+      improvements: splitLines(readRichText(props["Improvements"])),
+      trainerAdvice: readRichText(props["Trainer Advice"]),
+      keepForNextTraining: splitLines(readRichText(props["Keep For Next Training"])),
+      improveForNextTraining: splitLines(readRichText(props["Improve For Next Training"])),
+    };
+  } catch (error) {
+    console.error("[BNI Feedback] failed to load analysis report detail", error);
+    return null;
   }
 }

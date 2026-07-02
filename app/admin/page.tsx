@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import type { AnalysisReportSummary, FeedbackAnalysisResult } from "@/types/analysis";
+import type { AnalysisReportDetail, AnalysisReportSummary, FeedbackAnalysisResult } from "@/types/analysis";
 import type { TrainingTemplate } from "@/types/feedback";
 
 const QR_FILENAME = "bni-feedback-qr.png";
@@ -38,6 +38,11 @@ export default function AdminPage() {
   const [reports, setReports] = useState<AnalysisReportSummary[]>([]);
   const [reportsLoaded, setReportsLoaded] = useState(false);
   const [reportsRefreshing, setReportsRefreshing] = useState(false);
+
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [reportDetail, setReportDetail] = useState<AnalysisReportDetail | null>(null);
+  const [reportDetailStatus, setReportDetailStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [reportDetailError, setReportDetailError] = useState<string | null>(null);
 
   useEffect(() => {
     if (passwordConfigured && sessionStorage.getItem(SESSION_KEY) === "true") {
@@ -184,6 +189,39 @@ export default function AdminPage() {
     } catch {
       setAnalysisError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
       setAnalysisStatus("error");
+    }
+  };
+
+  const handleToggleDetail = async (reportId: string) => {
+    if (expandedReportId === reportId) {
+      setExpandedReportId(null);
+      setReportDetail(null);
+      setReportDetailStatus("idle");
+      setReportDetailError(null);
+      return;
+    }
+
+    setExpandedReportId(reportId);
+    setReportDetail(null);
+    setReportDetailStatus("loading");
+    setReportDetailError(null);
+
+    try {
+      const res = await fetch(`/api/analysis-reports/${reportId}`);
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        setReportDetail(data.report);
+        setReportDetailStatus("idle");
+      } else {
+        setReportDetailError(
+          typeof data?.message === "string" ? data.message : "리포트를 불러오지 못했습니다."
+        );
+        setReportDetailStatus("error");
+      }
+    } catch {
+      setReportDetailError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      setReportDetailStatus("error");
     }
   };
 
@@ -403,14 +441,94 @@ export default function AdminPage() {
           <p className="text-sm text-zinc-500">저장된 분석 리포트가 없습니다.</p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {reports.map((report) => (
-              <li key={report.id} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm">
-                <p className="font-medium text-zinc-900">{report.trainingTitle || "일반교육"}</p>
-                <p className="mt-0.5 text-xs text-zinc-400">{formatDateTime(report.analyzedAt)}</p>
-                <p className="mt-1 text-xs text-zinc-600">전체 만족도: {report.overallSatisfaction}</p>
-                <p className="mt-1 text-zinc-600">{report.oneLineReview}</p>
-              </li>
-            ))}
+            {reports.map((report) => {
+              const isExpanded = expandedReportId === report.id;
+
+              return (
+                <li key={report.id} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm">
+                  <p className="font-medium text-zinc-900">{report.trainingTitle || "일반교육"}</p>
+                  <p className="mt-0.5 text-xs text-zinc-400">{formatDateTime(report.analyzedAt)}</p>
+                  <p className="mt-1 text-xs text-zinc-600">전체 만족도: {report.overallSatisfaction}</p>
+                  <p className="mt-1 text-zinc-600">{report.oneLineReview}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleDetail(report.id)}
+                    className="mt-2 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors active:bg-zinc-100"
+                  >
+                    {isExpanded ? "닫기" : "상세 보기"}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="mt-3 flex flex-col gap-3 border-t border-zinc-100 pt-3 text-sm text-zinc-800">
+                      {reportDetailStatus === "loading" && (
+                        <p className="text-xs text-zinc-400">불러오는 중...</p>
+                      )}
+
+                      {reportDetailStatus === "error" && reportDetailError && (
+                        <p className="text-sm text-red-600">{reportDetailError}</p>
+                      )}
+
+                      {reportDetailStatus === "idle" && reportDetail && (
+                        <>
+                          <div>
+                            <p className="font-semibold text-zinc-900">교육 요약</p>
+                            <p className="mt-1 text-zinc-600">{reportDetail.summary}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-zinc-900">평균 점수</p>
+                            <ul className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-600">
+                              <li>전체 만족도: {reportDetail.overallSatisfaction}</li>
+                              <li>전달력: {reportDetail.delivery}</li>
+                              <li>준비도: {reportDetail.preparation}</li>
+                              <li>이해도: {reportDetail.understanding}</li>
+                              <li>실무 적용성: {reportDetail.practicality}</li>
+                              <li>시간 관리: {reportDetail.timeManagement}</li>
+                              <li>참여도: {reportDetail.participation}</li>
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-zinc-900">강점</p>
+                            <ul className="mt-1 list-inside list-disc text-zinc-600">
+                              {reportDetail.strengths.map((item, index) => (
+                                <li key={index}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-zinc-900">개선점</p>
+                            <ul className="mt-1 list-inside list-disc text-zinc-600">
+                              {reportDetail.improvements.map((item, index) => (
+                                <li key={index}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-zinc-900">다음 교육에서 유지할 점</p>
+                            <ul className="mt-1 list-inside list-disc text-zinc-600">
+                              {reportDetail.keepForNextTraining.map((item, index) => (
+                                <li key={index}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-zinc-900">다음 교육에서 개선할 점</p>
+                            <ul className="mt-1 list-inside list-disc text-zinc-600">
+                              {reportDetail.improveForNextTraining.map((item, index) => (
+                                <li key={index}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-zinc-900">트레이너 조언</p>
+                            <p className="mt-1 text-zinc-600">{reportDetail.trainerAdvice}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
