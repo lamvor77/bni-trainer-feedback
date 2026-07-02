@@ -225,6 +225,11 @@ export default function AdminPage() {
     }
   };
 
+  const handlePrintReport = () => {
+    if (!reportDetail) return;
+    window.print();
+  };
+
   if (!sessionChecked) {
     return null;
   }
@@ -265,7 +270,8 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-8 bg-zinc-50 px-5 py-10">
+    <>
+    <div className="flex flex-1 flex-col items-center gap-8 bg-zinc-50 px-5 py-10 print:hidden">
       {!passwordConfigured && (
         <div className="w-full max-w-sm rounded-xl bg-yellow-50 px-4 py-3 text-xs leading-relaxed text-yellow-700">
           관리자 비밀번호가 설정되어 있지 않습니다.
@@ -470,6 +476,15 @@ export default function AdminPage() {
 
                       {reportDetailStatus === "idle" && reportDetail && (
                         <>
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={handlePrintReport}
+                              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors active:bg-zinc-100"
+                            >
+                              PDF 다운로드
+                            </button>
+                          </div>
                           <div>
                             <p className="font-semibold text-zinc-900">교육 요약</p>
                             <p className="mt-1 text-zinc-600">{reportDetail.summary}</p>
@@ -533,5 +548,76 @@ export default function AdminPage() {
         )}
       </div>
     </div>
+
+    {reportDetail && (
+      <div className="hidden print:block print:p-8 print:text-sm print:text-zinc-900">
+        <h1 className="text-xl font-bold">
+          BNI 교육 분석 리포트 - {reportDetail.trainingTitle || "일반교육"}
+        </h1>
+        <p className="mt-1 text-zinc-600">교육명: {reportDetail.trainingTitle || "일반교육"}</p>
+        <p className="mt-1 text-zinc-600">분석일시: {formatDateTime(reportDetail.analyzedAt)}</p>
+        <p className="mt-1 text-zinc-600">한 줄 종합 평가: {reportDetail.oneLineReview}</p>
+
+        <div className="mt-4">
+          <p className="font-semibold">교육 요약</p>
+          <p className="mt-1 text-zinc-600">{reportDetail.summary}</p>
+        </div>
+
+        <div className="mt-4">
+          <p className="font-semibold">평균 점수</p>
+          <ul className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-600">
+            <li>전체 만족도: {reportDetail.overallSatisfaction}</li>
+            <li>전달력: {reportDetail.delivery}</li>
+            <li>준비도: {reportDetail.preparation}</li>
+            <li>이해도: {reportDetail.understanding}</li>
+            <li>실무 적용성: {reportDetail.practicality}</li>
+            <li>시간 관리: {reportDetail.timeManagement}</li>
+            <li>참여도: {reportDetail.participation}</li>
+          </ul>
+        </div>
+
+        <div className="mt-4">
+          <p className="font-semibold">강점</p>
+          <ul className="mt-1 list-inside list-disc text-zinc-600">
+            {reportDetail.strengths.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="mt-4">
+          <p className="font-semibold">개선점</p>
+          <ul className="mt-1 list-inside list-disc text-zinc-600">
+            {reportDetail.improvements.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="mt-4">
+          <p className="font-semibold">트레이너 조언</p>
+          <p className="mt-1 text-zinc-600">{reportDetail.trainerAdvice}</p>
+        </div>
+
+        <div className="mt-4">
+          <p className="font-semibold">다음 교육에서 유지할 점</p>
+          <ul className="mt-1 list-inside list-disc text-zinc-600">
+            {reportDetail.keepForNextTraining.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="mt-4">
+          <p className="font-semibold">다음 교육에서 개선할 점</p>
+          <ul className="mt-1 list-inside list-disc text-zinc-600">
+            {reportDetail.improveForNextTraining.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
