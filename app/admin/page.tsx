@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
+import type { FeedbackAnalysisResult } from "@/types/analysis";
 
 const QR_FILENAME = "bni-feedback-qr.png";
 const SESSION_KEY = "bni-admin-authenticated";
+
+type AnalysisStatus = "idle" | "loading" | "success" | "error";
 
 export default function AdminPage() {
   const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
@@ -18,6 +21,10 @@ export default function AdminPage() {
   const [origin, setOrigin] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>("idle");
+  const [analysisResult, setAnalysisResult] = useState<FeedbackAnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
     if (passwordConfigured && sessionStorage.getItem(SESSION_KEY) === "true") {
@@ -84,6 +91,31 @@ export default function AdminPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleAnalyze = async () => {
+    setAnalysisStatus("loading");
+    setAnalysisError(null);
+
+    try {
+      const res = await fetch("/api/analyze-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trainingId: "test", trainingTitle: "AI 분석 테스트" }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        setAnalysisResult(data.analysis);
+        setAnalysisStatus("success");
+      } else {
+        setAnalysisError("분석 결과를 가져오지 못했습니다.");
+        setAnalysisStatus("error");
+      }
+    } catch {
+      setAnalysisError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      setAnalysisStatus("error");
+    }
   };
 
   if (!sessionChecked) {
@@ -180,6 +212,54 @@ export default function AdminPage() {
         <br />
         참석자가 QR을 스캔한 뒤 교육명을 직접 선택합니다.
       </p>
+
+      <div className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6">
+        <button
+          type="button"
+          onClick={handleAnalyze}
+          disabled={analysisStatus === "loading"}
+          className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white transition-colors active:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-400"
+        >
+          {analysisStatus === "loading" ? "분석 중..." : "AI 분석 테스트"}
+        </button>
+
+        {analysisStatus === "error" && analysisError && (
+          <p className="text-sm text-red-600">{analysisError}</p>
+        )}
+
+        {analysisStatus === "success" && analysisResult && (
+          <div className="flex flex-col gap-4 text-sm text-zinc-800">
+            <div>
+              <p className="font-semibold text-zinc-900">한 줄 종합 평가</p>
+              <p className="mt-1 text-zinc-600">{analysisResult.oneLineReview}</p>
+            </div>
+            <div>
+              <p className="font-semibold text-zinc-900">교육 요약</p>
+              <p className="mt-1 text-zinc-600">{analysisResult.summary}</p>
+            </div>
+            <div>
+              <p className="font-semibold text-zinc-900">강점</p>
+              <ul className="mt-1 list-inside list-disc text-zinc-600">
+                {analysisResult.strengths.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold text-zinc-900">개선점</p>
+              <ul className="mt-1 list-inside list-disc text-zinc-600">
+                {analysisResult.improvements.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold text-zinc-900">트레이너 조언</p>
+              <p className="mt-1 text-zinc-600">{analysisResult.trainerAdvice}</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
