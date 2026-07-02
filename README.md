@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BNI Trainer Feedback System
 
-## Getting Started
+BNI 교육 종료 후 익명 피드백을 수집하고, AI 분석을 통해 트레이너가 다음 교육을 개선할 수 있도록 돕는 시스템입니다.
 
-First, run the development server:
+자세한 기획과 데이터 모델은 [PROJECT_SPEC.md](PROJECT_SPEC.md)를 참고하세요.
+
+## 기술 스택
+
+* Next.js 15 (App Router)
+* TypeScript
+* Tailwind CSS
+* 모바일 우선 UI
+* Vercel 배포
+
+## 시작하기
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000) 을 열면 확인할 수 있습니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 폴더 구조
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```text
+bni-trainer-feedback/
+├── app/            # Next.js App Router 페이지 및 라우트
+├── components/     # 재사용 UI 컴포넌트
+├── lib/            # 유틸리티, API 클라이언트, 헬퍼
+├── types/          # 공용 TypeScript 타입 정의
+├── public/         # 정적 파일
+├── prompts/        # AI 분석용 프롬프트 템플릿
+├── n8n/            # n8n 워크플로우 연동 준비 문서
+├── docs/           # 데이터 모델 등 설계 문서
+├── README.md
+├── PROJECT_SPEC.md
+├── CLAUDE.md
+└── .env.example
+```
 
-## Learn More
+## 현재 상태 (TASK-001)
 
-To learn more about Next.js, take a look at the following resources:
+* 프로젝트 생성 및 기본 폴더 구조 완료
+* Notion DB / n8n Webhook / AI 분석 연동은 아직 준비 문서 단계이며 실제 구현은 이후 TASK에서 진행합니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 환경 변수
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`.env.example`을 `.env.local`로 복사해 사용하세요. V1.0에서는 아직 실제로 사용되지 않습니다.
