@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import type { FeedbackAnalysisResult } from "@/types/analysis";
+import type { TrainingTemplate } from "@/types/feedback";
 
 const QR_FILENAME = "bni-feedback-qr.png";
 const SESSION_KEY = "bni-admin-authenticated";
@@ -22,8 +23,9 @@ export default function AdminPage() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
 
-  const [analysisTrainingId, setAnalysisTrainingId] = useState("msp");
-  const [analysisTrainingTitle, setAnalysisTrainingTitle] = useState("MSP 교육");
+  const [analysisTemplates, setAnalysisTemplates] = useState<TrainingTemplate[]>([]);
+  const [analysisTemplatesLoaded, setAnalysisTemplatesLoaded] = useState(false);
+  const [selectedAnalysisTemplateId, setSelectedAnalysisTemplateId] = useState("");
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>("idle");
   const [analysisResult, setAnalysisResult] = useState<FeedbackAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -58,6 +60,34 @@ export default function AdminPage() {
       cancelled = true;
     };
   }, [feedbackLink]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/training-templates")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const list: TrainingTemplate[] = Array.isArray(data?.templates) ? data.templates : [];
+        setAnalysisTemplates(list);
+        if (list.length > 0) {
+          setSelectedAnalysisTemplateId(list[0].id);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAnalysisTemplates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAnalysisTemplatesLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedAnalysisTemplate =
+    analysisTemplates.find((template) => template.id === selectedAnalysisTemplateId) ?? null;
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +126,8 @@ export default function AdminPage() {
   };
 
   const handleAnalyze = async () => {
+    if (!selectedAnalysisTemplate) return;
+
     setAnalysisStatus("loading");
     setAnalysisError(null);
 
@@ -103,7 +135,10 @@ export default function AdminPage() {
       const res = await fetch("/api/analyze-feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trainingId: analysisTrainingId, trainingTitle: analysisTrainingTitle }),
+        body: JSON.stringify({
+          trainingId: selectedAnalysisTemplate.id,
+          trainingTitle: selectedAnalysisTemplate.title,
+        }),
       });
       const data = await res.json();
 
@@ -218,34 +253,35 @@ export default function AdminPage() {
       </p>
 
       <div className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6">
-        <div className="flex flex-col gap-2">
-          <label htmlFor="analysis-training-id" className="text-xs font-medium text-zinc-600">
-            trainingId
-          </label>
-          <input
-            id="analysis-training-id"
-            type="text"
-            value={analysisTrainingId}
-            onChange={(e) => setAnalysisTrainingId(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-red-500"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label htmlFor="analysis-training-title" className="text-xs font-medium text-zinc-600">
-            trainingTitle
-          </label>
-          <input
-            id="analysis-training-title"
-            type="text"
-            value={analysisTrainingTitle}
-            onChange={(e) => setAnalysisTrainingTitle(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-red-500"
-          />
-        </div>
+        {analysisTemplatesLoaded && analysisTemplates.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            분석할 교육 목록을 불러오지 못했습니다.
+            <br />
+            Notion Training Templates DB를 확인해 주세요.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="analysis-template" className="text-xs font-medium text-zinc-600">
+              분석할 교육
+            </label>
+            <select
+              id="analysis-template"
+              value={selectedAnalysisTemplateId}
+              onChange={(e) => setSelectedAnalysisTemplateId(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-red-500"
+            >
+              {analysisTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <button
           type="button"
           onClick={handleAnalyze}
-          disabled={analysisStatus === "loading"}
+          disabled={analysisStatus === "loading" || !selectedAnalysisTemplate}
           className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white transition-colors active:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-400"
         >
           {analysisStatus === "loading" ? "분석 중..." : "AI 분석 테스트"}
