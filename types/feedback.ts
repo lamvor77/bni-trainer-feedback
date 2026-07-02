@@ -23,4 +23,5 @@ export interface FeedbackFormData {
   ratings: RatingValues;
   texts: TextValues;
   training: TrainingMeta;
+  submittedAt: string;
 }

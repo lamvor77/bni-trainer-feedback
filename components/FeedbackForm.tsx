@@ -68,6 +68,7 @@ const INITIAL_TEXTS: TextValues = {
 };
 
 type Errors = Partial<Record<RatingQuestionId | TextQuestionId, boolean>>;
+type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
 interface FeedbackFormProps {
   trainingMeta: TrainingMeta;
@@ -77,7 +78,8 @@ export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
   const [ratings, setRatings] = useState<RatingValues>(INITIAL_RATINGS);
   const [texts, setTexts] = useState<TextValues>(INITIAL_TEXTS);
   const [errors, setErrors] = useState<Errors>({});
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState<SubmitStatus>("idle");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleRatingChange = (id: RatingQuestionId, value: number) => {
     setRatings((prev) => ({ ...prev, [id]: value }));
@@ -89,8 +91,12 @@ export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
     setErrors((prev) => ({ ...prev, [id]: false }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (status === "submitting") {
+      return;
+    }
 
     const nextErrors: Errors = {};
 
@@ -116,13 +122,35 @@ export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
       ratings,
       texts,
       training: trainingMeta,
+      submittedAt: new Date().toISOString(),
     };
-    console.log("[BNI Feedback] submission payload", payload);
 
-    setSubmitted(true);
+    setStatus("submitting");
+    setSubmitError(null);
+
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        setStatus("success");
+      } else {
+        setSubmitError(
+          typeof data?.message === "string" ? data.message : "제출 중 오류가 발생했습니다. 다시 시도해주세요."
+        );
+        setStatus("error");
+      }
+    } catch {
+      setSubmitError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      setStatus("error");
+    }
   };
 
-  if (submitted) {
+  if (status === "success") {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
@@ -148,6 +176,10 @@ export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
           <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
             입력하지 않은 항목이 있습니다. 표시된 문항을 확인해주세요.
           </p>
+        )}
+
+        {status === "error" && submitError && (
+          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{submitError}</p>
         )}
 
         <section className="flex flex-col gap-7">
@@ -199,9 +231,10 @@ export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
       <div className="fixed inset-x-0 bottom-0 border-t border-zinc-200 bg-white/95 px-5 py-4 backdrop-blur">
         <button
           type="submit"
-          className="w-full rounded-xl bg-red-600 py-3.5 text-base font-semibold text-white transition-colors active:bg-red-700"
+          disabled={status === "submitting"}
+          className="w-full rounded-xl bg-red-600 py-3.5 text-base font-semibold text-white transition-colors active:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
         >
-          제출하기
+          {status === "submitting" ? "제출 중..." : "제출하기"}
         </button>
       </div>
     </form>
