@@ -34,3 +34,13 @@ export type FeedbackAnalysisResult = {
   improveForNextTraining: string[];
   oneLineReview: string;
 };
+
+export type AnalysisReportSummary = {
+  id: string;
+  name: string;
+  trainingId: string;
+  trainingTitle: string;
+  analyzedAt: string;
+  oneLineReview: string;
+  overallSatisfaction: number;
+};

@@ -1,7 +1,7 @@
 import { Client } from "@notionhq/client";
 import type { CreatePageParameters } from "@notionhq/client";
 import type { FeedbackFormData, TrainingMeta, TrainingTemplate } from "@/types/feedback";
-import type { FeedbackAnalysisResult, FeedbackForAnalysis } from "@/types/analysis";
+import type { AnalysisReportSummary, FeedbackAnalysisResult, FeedbackForAnalysis } from "@/types/analysis";
 
 type NotionProperties = NonNullable<CreatePageParameters["properties"]>;
 
@@ -314,5 +314,54 @@ export async function createAnalysisReportPage(params: {
   } catch (error) {
     console.error("[BNI Feedback] failed to save analysis report to Notion", error);
     throw new Error("분석 결과 저장 중 오류가 발생했습니다.");
+  }
+}
+
+export async function getAnalysisReports(limit: number = 10): Promise<AnalysisReportSummary[]> {
+  const env = getAnalysisReportEnv();
+
+  if (!env) {
+    return [];
+  }
+
+  try {
+    const notion = new Client({ auth: env.apiKey });
+    const database = await notion.databases.retrieve({ database_id: env.databaseId });
+    const dataSourceId = "data_sources" in database ? database.data_sources[0]?.id : undefined;
+
+    if (!dataSourceId) {
+      return [];
+    }
+
+    const response = await notion.dataSources.query({
+      data_source_id: dataSourceId,
+      sorts: [{ property: "Analyzed At", direction: "descending" }],
+      page_size: limit,
+    });
+
+    const reports: AnalysisReportSummary[] = [];
+
+    for (const result of response.results) {
+      if (result.object !== "page") continue;
+      const properties = (result as { properties?: unknown }).properties;
+      if (typeof properties !== "object" || properties === null) continue;
+
+      const props = properties as Record<string, unknown>;
+
+      reports.push({
+        id: result.id,
+        name: readTitleText(props["Name"]),
+        trainingId: readRichText(props["Training ID"]),
+        trainingTitle: readRichText(props["Training Title"]),
+        analyzedAt: readDateStart(props["Analyzed At"]) || "",
+        oneLineReview: readRichText(props["One Line Review"]),
+        overallSatisfaction: readNumber(props["Overall Satisfaction"]),
+      });
+    }
+
+    return reports;
+  } catch (error) {
+    console.error("[BNI Feedback] failed to load analysis reports", error);
+    return [];
   }
 }

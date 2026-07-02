@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import type { FeedbackAnalysisResult } from "@/types/analysis";
+import type { AnalysisReportSummary, FeedbackAnalysisResult } from "@/types/analysis";
 import type { TrainingTemplate } from "@/types/feedback";
 
 const QR_FILENAME = "bni-feedback-qr.png";
 const SESSION_KEY = "bni-admin-authenticated";
 
 type AnalysisStatus = "idle" | "loading" | "success" | "error";
+
+function formatDateTime(iso: string): string {
+  if (!iso) return "";
+  return iso.slice(0, 16).replace("T", " ");
+}
 
 export default function AdminPage() {
   const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
@@ -29,6 +34,10 @@ export default function AdminPage() {
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>("idle");
   const [analysisResult, setAnalysisResult] = useState<FeedbackAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  const [reports, setReports] = useState<AnalysisReportSummary[]>([]);
+  const [reportsLoaded, setReportsLoaded] = useState(false);
+  const [reportsRefreshing, setReportsRefreshing] = useState(false);
 
   useEffect(() => {
     if (passwordConfigured && sessionStorage.getItem(SESSION_KEY) === "true") {
@@ -89,6 +98,26 @@ export default function AdminPage() {
   const selectedAnalysisTemplate =
     analysisTemplates.find((template) => template.id === selectedAnalysisTemplateId) ?? null;
 
+  const fetchReports = async () => {
+    setReportsRefreshing(true);
+
+    try {
+      const res = await fetch("/api/analysis-reports");
+      const data = await res.json();
+      const list: AnalysisReportSummary[] = Array.isArray(data?.reports) ? data.reports : [];
+      setReports(list);
+    } catch {
+      setReports([]);
+    } finally {
+      setReportsLoaded(true);
+      setReportsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -145,6 +174,7 @@ export default function AdminPage() {
       if (res.ok && data.ok) {
         setAnalysisResult(data.analysis);
         setAnalysisStatus("success");
+        fetchReports();
       } else {
         setAnalysisError(
           typeof data?.message === "string" ? data.message : "분석 결과를 가져오지 못했습니다."
@@ -353,6 +383,35 @@ export default function AdminPage() {
               <p className="mt-1 text-zinc-600">{analysisResult.trainerAdvice}</p>
             </div>
           </div>
+        )}
+      </div>
+
+      <div className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-zinc-900">최근 분석 리포트</p>
+          <button
+            type="button"
+            onClick={fetchReports}
+            disabled={reportsRefreshing}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors active:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400"
+          >
+            {reportsRefreshing ? "새로고침 중..." : "새로고침"}
+          </button>
+        </div>
+
+        {reportsLoaded && reports.length === 0 ? (
+          <p className="text-sm text-zinc-500">저장된 분석 리포트가 없습니다.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {reports.map((report) => (
+              <li key={report.id} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm">
+                <p className="font-medium text-zinc-900">{report.trainingTitle || "일반교육"}</p>
+                <p className="mt-0.5 text-xs text-zinc-400">{formatDateTime(report.analyzedAt)}</p>
+                <p className="mt-1 text-xs text-zinc-600">전체 만족도: {report.overallSatisfaction}</p>
+                <p className="mt-1 text-zinc-600">{report.oneLineReview}</p>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>
