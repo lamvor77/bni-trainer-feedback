@@ -257,6 +257,9 @@ export default function AdminPage() {
 
         {analysisStatus === "success" && analysisResult && (
           <div className="flex flex-col gap-4 text-sm text-zinc-800">
+            <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+              AI 분석 결과가 Notion 리포트에 저장되었습니다.
+            </p>
             <div>
               <p className="font-semibold text-zinc-900">한 줄 종합 평가</p>
               <p className="mt-1 text-zinc-600">{analysisResult.oneLineReview}</p>

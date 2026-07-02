@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyzeFeedbackBatch } from "@/lib/analysis";
-import { getFeedbackByTrainingId } from "@/lib/notion";
+import { createAnalysisReportPage, getFeedbackByTrainingId } from "@/lib/notion";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -11,7 +11,8 @@ export async function POST(request: Request) {
     body = {};
   }
 
-  const { trainingId } = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  const { trainingId, trainingTitle } =
+    typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
 
   if (typeof trainingId !== "string" || trainingId.trim().length === 0) {
     return NextResponse.json({ ok: false, message: "trainingId가 필요합니다." }, { status: 400 });
@@ -23,12 +24,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "분석할 피드백이 없습니다." });
   }
 
+  const resolvedTrainingTitle =
+    (typeof trainingTitle === "string" && trainingTitle.trim().length > 0 ? trainingTitle : undefined) ||
+    feedbackList[0]?.trainingTitle ||
+    trainingId;
+
+  let analysis;
+
   try {
-    const analysis = await analyzeFeedbackBatch(feedbackList);
-    return NextResponse.json({ ok: true, analysis });
+    analysis = await analyzeFeedbackBatch(feedbackList);
   } catch (error) {
     console.error("[BNI Feedback] analysis failed", error);
     const message = error instanceof Error ? error.message : "분석 중 오류가 발생했습니다.";
     return NextResponse.json({ ok: false, message }, { status: 500 });
   }
+
+  try {
+    await createAnalysisReportPage({ trainingId, trainingTitle: resolvedTrainingTitle, analysis });
+  } catch (error) {
+    console.error("[BNI Feedback] failed to save analysis report", error);
+    return NextResponse.json(
+      { ok: false, message: "분석 결과 저장 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true, analysis });
 }

@@ -1,7 +1,7 @@
 import { Client } from "@notionhq/client";
 import type { CreatePageParameters } from "@notionhq/client";
 import type { FeedbackFormData, TrainingMeta, TrainingTemplate } from "@/types/feedback";
-import type { FeedbackForAnalysis } from "@/types/analysis";
+import type { FeedbackAnalysisResult, FeedbackForAnalysis } from "@/types/analysis";
 
 type NotionProperties = NonNullable<CreatePageParameters["properties"]>;
 
@@ -19,6 +19,17 @@ function getNotionEnv(): { apiKey: string; databaseId: string } | null {
 function getTrainingTemplateEnv(): { apiKey: string; databaseId: string } | null {
   const apiKey = process.env.NOTION_API_KEY;
   const databaseId = process.env.NOTION_TRAINING_TEMPLATE_DATABASE_ID;
+
+  if (!apiKey || !databaseId) {
+    return null;
+  }
+
+  return { apiKey, databaseId };
+}
+
+function getAnalysisReportEnv(): { apiKey: string; databaseId: string } | null {
+  const apiKey = process.env.NOTION_API_KEY;
+  const databaseId = process.env.NOTION_ANALYSIS_REPORT_DATABASE_ID;
 
   if (!apiKey || !databaseId) {
     return null;
@@ -239,5 +250,69 @@ export async function getFeedbackByTrainingId(trainingId: string): Promise<Feedb
   } catch (error) {
     console.error("[BNI Feedback] failed to load feedback for analysis", error);
     return [];
+  }
+}
+
+function buildAnalysisReportName(trainingTitle: string, trainingId: string, analyzedAtIso: string): string {
+  const subject = trainingTitle || trainingId || "일반교육";
+  return `분석 리포트 - ${subject} - ${formatTimestamp(analyzedAtIso)}`;
+}
+
+function buildAnalysisReportProperties(params: {
+  trainingId: string;
+  trainingTitle: string;
+  analysis: FeedbackAnalysisResult;
+  analyzedAtIso: string;
+}): NotionProperties {
+  const { trainingId, trainingTitle, analysis, analyzedAtIso } = params;
+
+  return {
+    Name: {
+      title: [{ text: { content: buildAnalysisReportName(trainingTitle, trainingId, analyzedAtIso) } }],
+    },
+    "Training ID": richText(trainingId),
+    "Training Title": richText(trainingTitle),
+    "Analyzed At": { date: { start: analyzedAtIso } },
+    Summary: richText(analysis.summary),
+    "One Line Review": richText(analysis.oneLineReview),
+    "Overall Satisfaction": { number: analysis.averageScores.overallSatisfaction },
+    Delivery: { number: analysis.averageScores.delivery },
+    Preparation: { number: analysis.averageScores.preparation },
+    Understanding: { number: analysis.averageScores.understanding },
+    Practicality: { number: analysis.averageScores.practicality },
+    "Time Management": { number: analysis.averageScores.timeManagement },
+    Participation: { number: analysis.averageScores.participation },
+    Strengths: richText(analysis.strengths.join("\n")),
+    Improvements: richText(analysis.improvements.join("\n")),
+    "Trainer Advice": richText(analysis.trainerAdvice),
+    "Keep For Next Training": richText(analysis.keepForNextTraining.join("\n")),
+    "Improve For Next Training": richText(analysis.improveForNextTraining.join("\n")),
+  };
+}
+
+export async function createAnalysisReportPage(params: {
+  trainingId: string;
+  trainingTitle: string;
+  analysis: FeedbackAnalysisResult;
+}): Promise<void> {
+  const env = getAnalysisReportEnv();
+
+  if (!env) {
+    throw new Error(
+      "Notion 환경변수(NOTION_API_KEY, NOTION_ANALYSIS_REPORT_DATABASE_ID)가 설정되지 않았습니다."
+    );
+  }
+
+  const analyzedAtIso = new Date().toISOString();
+  const notion = new Client({ auth: env.apiKey });
+
+  try {
+    await notion.pages.create({
+      parent: { database_id: env.databaseId },
+      properties: buildAnalysisReportProperties({ ...params, analyzedAtIso }),
+    });
+  } catch (error) {
+    console.error("[BNI Feedback] failed to save analysis report to Notion", error);
+    throw new Error("분석 결과 저장 중 오류가 발생했습니다.");
   }
 }
