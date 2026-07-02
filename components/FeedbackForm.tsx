@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import StarRating from "./StarRating";
-import type { RatingQuestionId, RatingValues, TextQuestionId, TextValues } from "@/types/feedback";
+import type {
+  FeedbackFormData,
+  RatingQuestionId,
+  RatingValues,
+  TextQuestionId,
+  TextValues,
+  TrainingMeta,
+} from "@/types/feedback";
 
 const RATING_QUESTIONS: { id: RatingQuestionId; number: number; label: string }[] = [
   { id: "overall", number: 1, label: "이번 교육의 전체 만족도는 어떠셨나요?" },
@@ -62,7 +69,11 @@ const INITIAL_TEXTS: TextValues = {
 
 type Errors = Partial<Record<RatingQuestionId | TextQuestionId, boolean>>;
 
-export default function FeedbackForm() {
+interface FeedbackFormProps {
+  trainingMeta: TrainingMeta;
+}
+
+export default function FeedbackForm({ trainingMeta }: FeedbackFormProps) {
   const [ratings, setRatings] = useState<RatingValues>(INITIAL_RATINGS);
   const [texts, setTexts] = useState<TextValues>(INITIAL_TEXTS);
   const [errors, setErrors] = useState<Errors>({});
@@ -100,6 +111,13 @@ export default function FeedbackForm() {
     if (Object.keys(nextErrors).length > 0) {
       return;
     }
+
+    const payload: FeedbackFormData = {
+      ratings,
+      texts,
+      training: trainingMeta,
+    };
+    console.log("[BNI Feedback] submission payload", payload);
 
     setSubmitted(true);
   };
