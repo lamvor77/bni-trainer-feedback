@@ -23,7 +23,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "분석할 피드백이 없습니다." });
   }
 
-  const analysis = await analyzeFeedbackBatch(feedbackList);
-
-  return NextResponse.json({ ok: true, analysis });
+  try {
+    const analysis = await analyzeFeedbackBatch(feedbackList);
+    return NextResponse.json({ ok: true, analysis });
+  } catch (error) {
+    console.error("[BNI Feedback] analysis failed", error);
+    const message = error instanceof Error ? error.message : "분석 중 오류가 발생했습니다.";
+    return NextResponse.json({ ok: false, message }, { status: 500 });
+  }
 }

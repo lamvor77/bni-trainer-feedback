@@ -266,6 +266,18 @@ export default function AdminPage() {
               <p className="mt-1 text-zinc-600">{analysisResult.summary}</p>
             </div>
             <div>
+              <p className="font-semibold text-zinc-900">평균 점수</p>
+              <ul className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-600">
+                <li>전체 만족도: {analysisResult.averageScores.overallSatisfaction}</li>
+                <li>전달력: {analysisResult.averageScores.delivery}</li>
+                <li>준비도: {analysisResult.averageScores.preparation}</li>
+                <li>이해도: {analysisResult.averageScores.understanding}</li>
+                <li>실무 적용성: {analysisResult.averageScores.practicality}</li>
+                <li>시간 관리: {analysisResult.averageScores.timeManagement}</li>
+                <li>참여도: {analysisResult.averageScores.participation}</li>
+              </ul>
+            </div>
+            <div>
               <p className="font-semibold text-zinc-900">강점</p>
               <ul className="mt-1 list-inside list-disc text-zinc-600">
                 {analysisResult.strengths.map((item, index) => (
@@ -277,6 +289,22 @@ export default function AdminPage() {
               <p className="font-semibold text-zinc-900">개선점</p>
               <ul className="mt-1 list-inside list-disc text-zinc-600">
                 {analysisResult.improvements.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold text-zinc-900">다음 교육에서 유지할 점</p>
+              <ul className="mt-1 list-inside list-disc text-zinc-600">
+                {analysisResult.keepForNextTraining.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold text-zinc-900">다음 교육에서 개선할 점</p>
+              <ul className="mt-1 list-inside list-disc text-zinc-600">
+                {analysisResult.improveForNextTraining.map((item, index) => (
                   <li key={index}>{item}</li>
                 ))}
               </ul>
