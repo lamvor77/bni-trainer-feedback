@@ -6,22 +6,22 @@
 
 | Notion 속성명 | 타입 | 매핑되는 데이터 |
 | --- | --- | --- |
-| Name | title | `피드백 - {교육명 또는 trainingId 또는 "일반교육"} - {YYYY-MM-DD HH:mm}` |
-| Training ID | rich_text | `training.trainingId` |
-| Training Title | rich_text | `training.trainingTitle` |
-| Trainer | rich_text | `training.trainerName` |
-| Training Date | date | `training.trainingDate` (유효한 날짜일 때만 저장, 아니면 비움) |
-| Submitted At | date | `submittedAt` (항상 저장) |
-| Overall Satisfaction | number | 1. 전체 만족도 |
-| Delivery | number | 2. 트레이너 전달력 |
-| Preparation | number | 3. 교육 준비 충분성 |
-| Understanding | number | 4. 내용 이해 용이성 |
-| Practicality | number | 5. BNI 활동 도움 정도 |
-| Time Management | number | 6. 교육 시간 적절성 |
-| Participation | number | 7. 참여와 소통 충분성 |
-| Best Point | rich_text | 8. 가장 좋았던 점 |
-| Improvement Point | rich_text | 9. 개선하면 좋을 점 |
-| Message to Trainer | rich_text | 10. 트레이너에게 응원 메시지 |
+| 이름 | title | `피드백 - {교육명 또는 trainingId 또는 "일반교육"} - {YYYY-MM-DD HH:mm}` |
+| 교육 ID | rich_text | `training.trainingId` |
+| 교육명 | rich_text | `training.trainingTitle` |
+| 트레이너 | rich_text | `training.trainerName` |
+| 교육일 | date | `training.trainingDate` (유효한 날짜일 때만 저장, 아니면 비움) |
+| 제출일시 | date | `submittedAt` (항상 저장) |
+| 전체 만족도 | number | 1. 전체 만족도 |
+| 전달력 | number | 2. 트레이너 전달력 |
+| 준비도 | number | 3. 교육 준비 충분성 |
+| 이해도 | number | 4. 내용 이해 용이성 |
+| 실무 적용성 | number | 5. BNI 활동 도움 정도 |
+| 시간 관리 | number | 6. 교육 시간 적절성 |
+| 참여도 | number | 7. 참여와 소통 충분성 |
+| 가장 좋았던 점 | rich_text | 8. 가장 좋았던 점 |
+| 개선할 점 | rich_text | 9. 개선하면 좋을 점 |
+| 트레이너에게 한마디 | rich_text | 10. 트레이너에게 응원 메시지 |
 
 익명 수집이 원칙이므로 참가자를 식별할 수 있는 필드(이름, 이메일 등)는 저장하지 않는다.
 
@@ -44,24 +44,24 @@
 
 | Notion 속성명 | 타입 | 매핑되는 데이터 |
 | --- | --- | --- |
-| Name | title | `분석 리포트 - {교육명 또는 trainingId 또는 "일반교육"} - {YYYY-MM-DD HH:mm}` |
-| Training ID | rich_text | 분석 대상 `trainingId` |
-| Training Title | rich_text | 분석 대상 `trainingTitle` |
-| Analyzed At | date | 분석 실행 시각 |
-| Summary | rich_text | 교육 전체 요약 |
-| One Line Review | rich_text | 한 줄 종합 평가 |
-| Overall Satisfaction | number | 평균 점수 — 전체 만족도 |
-| Delivery | number | 평균 점수 — 전달력 |
-| Preparation | number | 평균 점수 — 준비도 |
-| Understanding | number | 평균 점수 — 이해도 |
-| Practicality | number | 평균 점수 — 실무 적용성 |
-| Time Management | number | 평균 점수 — 시간 관리 |
-| Participation | number | 평균 점수 — 참여도 |
-| Strengths | rich_text | 강점 TOP 5 (줄바꿈으로 구분) |
-| Improvements | rich_text | 개선점 TOP 5 (줄바꿈으로 구분) |
-| Trainer Advice | rich_text | 트레이너에게 주는 조언 |
-| Keep For Next Training | rich_text | 다음 교육에서 유지할 점 (줄바꿈으로 구분) |
-| Improve For Next Training | rich_text | 다음 교육에서 개선할 점 (줄바꿈으로 구분) |
+| 이름 | title | `분석 리포트 - {교육명 또는 trainingId 또는 "일반교육"} - {YYYY-MM-DD HH:mm}` |
+| 교육 ID | rich_text | 분석 대상 `trainingId` |
+| 교육명 | rich_text | 분석 대상 `trainingTitle` |
+| 분석일시 | date | 분석 실행 시각 |
+| 교육 요약 | rich_text | 교육 전체 요약 |
+| 한 줄 종합 평가 | rich_text | 한 줄 종합 평가 |
+| 전체 만족도 | number | 평균 점수 — 전체 만족도 |
+| 전달력 | number | 평균 점수 — 전달력 |
+| 준비도 | number | 평균 점수 — 준비도 |
+| 이해도 | number | 평균 점수 — 이해도 |
+| 실무 적용성 | number | 평균 점수 — 실무 적용성 |
+| 시간 관리 | number | 평균 점수 — 시간 관리 |
+| 참여도 | number | 평균 점수 — 참여도 |
+| 강점 | rich_text | 강점 TOP 5 (줄바꿈으로 구분) |
+| 개선점 | rich_text | 개선점 TOP 5 (줄바꿈으로 구분) |
+| 트레이너 조언 | rich_text | 트레이너에게 주는 조언 |
+| 다음 교육에서 유지할 점 | rich_text | 다음 교육에서 유지할 점 (줄바꿈으로 구분) |
+| 다음 교육에서 개선할 점 | rich_text | 다음 교육에서 개선할 점 (줄바꿈으로 구분) |
 
 평균 점수는 OpenAI가 아니라 서버(`lib/analysis.ts`)에서 피드백 원본 점수로 직접 계산한 값을 저장한다. 필요 환경변수: `NOTION_ANALYSIS_REPORT_DATABASE_ID` (`NOTION_API_KEY`는 다른 DB와 공용). 환경변수가 없거나 저장에 실패하면 분석 자체는 성공했더라도 API가 오류를 반환한다.
 

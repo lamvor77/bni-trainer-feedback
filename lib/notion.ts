@@ -71,25 +71,25 @@ function buildFeedbackProperties(payload: FeedbackFormData): NotionProperties {
   const submittedAtIso = isValidDateString(submittedAt) ? submittedAt : new Date().toISOString();
 
   const properties: NotionProperties = {
-    Name: { title: [{ text: { content: buildFeedbackName(training, submittedAtIso) } }] },
-    "Training ID": richText(training.trainingId),
-    "Training Title": richText(training.trainingTitle),
-    Trainer: richText(training.trainerName),
-    "Submitted At": { date: { start: submittedAtIso } },
-    "Overall Satisfaction": { number: ratings.overall },
-    Delivery: { number: ratings.delivery },
-    Preparation: { number: ratings.preparation },
-    Understanding: { number: ratings.clarity },
-    Practicality: { number: ratings.usefulness },
-    "Time Management": { number: ratings.duration },
-    Participation: { number: ratings.participation },
-    "Best Point": richText(texts.highlight),
-    "Improvement Point": richText(texts.improvement),
-    "Message to Trainer": richText(texts.message),
+    "이름": { title: [{ text: { content: buildFeedbackName(training, submittedAtIso) } }] },
+    "교육 ID": richText(training.trainingId),
+    "교육명": richText(training.trainingTitle),
+    "트레이너": richText(training.trainerName),
+    "제출일시": { date: { start: submittedAtIso } },
+    "전체 만족도": { number: ratings.overall },
+    "전달력": { number: ratings.delivery },
+    "준비도": { number: ratings.preparation },
+    "이해도": { number: ratings.clarity },
+    "실무 적용성": { number: ratings.usefulness },
+    "시간 관리": { number: ratings.duration },
+    "참여도": { number: ratings.participation },
+    "가장 좋았던 점": richText(texts.highlight),
+    "개선할 점": richText(texts.improvement),
+    "트레이너에게 한마디": richText(texts.message),
   };
 
   if (isValidDateString(training.trainingDate)) {
-    properties["Training Date"] = { date: { start: toDateStart(training.trainingDate) } };
+    properties["교육일"] = { date: { start: toDateStart(training.trainingDate) } };
   }
 
   return properties;
@@ -217,15 +217,26 @@ export async function getFeedbackByTrainingId(trainingId: string): Promise<Feedb
       return [];
     }
 
-    const response = await notion.dataSources.query({
-      data_source_id: dataSourceId,
-      filter: { property: "Training ID", rich_text: { equals: trainingId } },
-      sorts: [{ property: "Submitted At", direction: "descending" }],
-    });
+    // Notion은 한 번에 최대 100건만 반환하므로 끝까지 이어서 조회한다.
+    const results = [];
+    let cursor: string | undefined;
+
+    do {
+      const response = await notion.dataSources.query({
+        data_source_id: dataSourceId,
+        filter: { property: "교육 ID", rich_text: { equals: trainingId } },
+        sorts: [{ property: "제출일시", direction: "descending" }],
+        page_size: 100,
+        start_cursor: cursor,
+      });
+
+      results.push(...response.results);
+      cursor = response.has_more && response.next_cursor ? response.next_cursor : undefined;
+    } while (cursor);
 
     const feedbackList: FeedbackForAnalysis[] = [];
 
-    for (const result of response.results) {
+    for (const result of results) {
       if (result.object !== "page") continue;
       const properties = (result as { properties?: unknown }).properties;
       if (typeof properties !== "object" || properties === null) continue;
@@ -233,21 +244,21 @@ export async function getFeedbackByTrainingId(trainingId: string): Promise<Feedb
       const props = properties as Record<string, unknown>;
 
       feedbackList.push({
-        trainingId: readRichText(props["Training ID"]) || trainingId,
-        trainingTitle: readRichText(props["Training Title"]),
-        trainerName: readRichText(props["Trainer"]) || undefined,
-        trainingDate: readDateStart(props["Training Date"]),
-        submittedAt: readDateStart(props["Submitted At"]),
-        overallSatisfaction: readNumber(props["Overall Satisfaction"]),
-        delivery: readNumber(props["Delivery"]),
-        preparation: readNumber(props["Preparation"]),
-        understanding: readNumber(props["Understanding"]),
-        practicality: readNumber(props["Practicality"]),
-        timeManagement: readNumber(props["Time Management"]),
-        participation: readNumber(props["Participation"]),
-        bestPoint: readRichText(props["Best Point"]),
-        improvementPoint: readRichText(props["Improvement Point"]),
-        messageToTrainer: readRichText(props["Message to Trainer"]) || undefined,
+        trainingId: readRichText(props["교육 ID"]) || trainingId,
+        trainingTitle: readRichText(props["교육명"]),
+        trainerName: readRichText(props["트레이너"]) || undefined,
+        trainingDate: readDateStart(props["교육일"]),
+        submittedAt: readDateStart(props["제출일시"]),
+        overallSatisfaction: readNumber(props["전체 만족도"]),
+        delivery: readNumber(props["전달력"]),
+        preparation: readNumber(props["준비도"]),
+        understanding: readNumber(props["이해도"]),
+        practicality: readNumber(props["실무 적용성"]),
+        timeManagement: readNumber(props["시간 관리"]),
+        participation: readNumber(props["참여도"]),
+        bestPoint: readRichText(props["가장 좋았던 점"]),
+        improvementPoint: readRichText(props["개선할 점"]),
+        messageToTrainer: readRichText(props["트레이너에게 한마디"]) || undefined,
       });
     }
 
@@ -272,26 +283,26 @@ function buildAnalysisReportProperties(params: {
   const { trainingId, trainingTitle, analysis, analyzedAtIso } = params;
 
   return {
-    Name: {
+    "이름": {
       title: [{ text: { content: buildAnalysisReportName(trainingTitle, trainingId, analyzedAtIso) } }],
     },
-    "Training ID": richText(trainingId),
-    "Training Title": richText(trainingTitle),
-    "Analyzed At": { date: { start: analyzedAtIso } },
-    Summary: richText(analysis.summary),
-    "One Line Review": richText(analysis.oneLineReview),
-    "Overall Satisfaction": { number: analysis.averageScores.overallSatisfaction },
-    Delivery: { number: analysis.averageScores.delivery },
-    Preparation: { number: analysis.averageScores.preparation },
-    Understanding: { number: analysis.averageScores.understanding },
-    Practicality: { number: analysis.averageScores.practicality },
-    "Time Management": { number: analysis.averageScores.timeManagement },
-    Participation: { number: analysis.averageScores.participation },
-    Strengths: richText(analysis.strengths.join("\n")),
-    Improvements: richText(analysis.improvements.join("\n")),
-    "Trainer Advice": richText(analysis.trainerAdvice),
-    "Keep For Next Training": richText(analysis.keepForNextTraining.join("\n")),
-    "Improve For Next Training": richText(analysis.improveForNextTraining.join("\n")),
+    "교육 ID": richText(trainingId),
+    "교육명": richText(trainingTitle),
+    "분석일시": { date: { start: analyzedAtIso } },
+    "교육 요약": richText(analysis.summary),
+    "한 줄 종합 평가": richText(analysis.oneLineReview),
+    "전체 만족도": { number: analysis.averageScores.overallSatisfaction },
+    "전달력": { number: analysis.averageScores.delivery },
+    "준비도": { number: analysis.averageScores.preparation },
+    "이해도": { number: analysis.averageScores.understanding },
+    "실무 적용성": { number: analysis.averageScores.practicality },
+    "시간 관리": { number: analysis.averageScores.timeManagement },
+    "참여도": { number: analysis.averageScores.participation },
+    "강점": richText(analysis.strengths.join("\n")),
+    "개선점": richText(analysis.improvements.join("\n")),
+    "트레이너 조언": richText(analysis.trainerAdvice),
+    "다음 교육에서 유지할 점": richText(analysis.keepForNextTraining.join("\n")),
+    "다음 교육에서 개선할 점": richText(analysis.improveForNextTraining.join("\n")),
   };
 }
 
@@ -340,7 +351,7 @@ export async function getAnalysisReports(limit: number = 10): Promise<AnalysisRe
 
     const response = await notion.dataSources.query({
       data_source_id: dataSourceId,
-      sorts: [{ property: "Analyzed At", direction: "descending" }],
+      sorts: [{ property: "분석일시", direction: "descending" }],
       page_size: limit,
     });
 
@@ -355,12 +366,12 @@ export async function getAnalysisReports(limit: number = 10): Promise<AnalysisRe
 
       reports.push({
         id: result.id,
-        name: readTitleText(props["Name"]),
-        trainingId: readRichText(props["Training ID"]),
-        trainingTitle: readRichText(props["Training Title"]),
-        analyzedAt: readDateStart(props["Analyzed At"]) || "",
-        oneLineReview: readRichText(props["One Line Review"]),
-        overallSatisfaction: readNumber(props["Overall Satisfaction"]),
+        name: readTitleText(props["이름"]),
+        trainingId: readRichText(props["교육 ID"]),
+        trainingTitle: readRichText(props["교육명"]),
+        analyzedAt: readDateStart(props["분석일시"]) || "",
+        oneLineReview: readRichText(props["한 줄 종합 평가"]),
+        overallSatisfaction: readNumber(props["전체 만족도"]),
       });
     }
 
@@ -402,24 +413,24 @@ export async function getAnalysisReportById(reportId: string): Promise<AnalysisR
 
     return {
       id: page.id,
-      name: readTitleText(props["Name"]),
-      trainingId: readRichText(props["Training ID"]),
-      trainingTitle: readRichText(props["Training Title"]),
-      analyzedAt: readDateStart(props["Analyzed At"]) || "",
-      oneLineReview: readRichText(props["One Line Review"]),
-      overallSatisfaction: readNumber(props["Overall Satisfaction"]),
-      summary: readRichText(props["Summary"]),
-      delivery: readNumber(props["Delivery"]),
-      preparation: readNumber(props["Preparation"]),
-      understanding: readNumber(props["Understanding"]),
-      practicality: readNumber(props["Practicality"]),
-      timeManagement: readNumber(props["Time Management"]),
-      participation: readNumber(props["Participation"]),
-      strengths: splitLines(readRichText(props["Strengths"])),
-      improvements: splitLines(readRichText(props["Improvements"])),
-      trainerAdvice: readRichText(props["Trainer Advice"]),
-      keepForNextTraining: splitLines(readRichText(props["Keep For Next Training"])),
-      improveForNextTraining: splitLines(readRichText(props["Improve For Next Training"])),
+      name: readTitleText(props["이름"]),
+      trainingId: readRichText(props["교육 ID"]),
+      trainingTitle: readRichText(props["교육명"]),
+      analyzedAt: readDateStart(props["분석일시"]) || "",
+      oneLineReview: readRichText(props["한 줄 종합 평가"]),
+      overallSatisfaction: readNumber(props["전체 만족도"]),
+      summary: readRichText(props["교육 요약"]),
+      delivery: readNumber(props["전달력"]),
+      preparation: readNumber(props["준비도"]),
+      understanding: readNumber(props["이해도"]),
+      practicality: readNumber(props["실무 적용성"]),
+      timeManagement: readNumber(props["시간 관리"]),
+      participation: readNumber(props["참여도"]),
+      strengths: splitLines(readRichText(props["강점"])),
+      improvements: splitLines(readRichText(props["개선점"])),
+      trainerAdvice: readRichText(props["트레이너 조언"]),
+      keepForNextTraining: splitLines(readRichText(props["다음 교육에서 유지할 점"])),
+      improveForNextTraining: splitLines(readRichText(props["다음 교육에서 개선할 점"])),
     };
   } catch (error) {
     console.error("[BNI Feedback] failed to load analysis report detail", error);
